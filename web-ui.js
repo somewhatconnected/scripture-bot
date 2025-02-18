@@ -30,4 +30,6 @@ app.post('/api/scripture/custom', async (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Web UI running on port ${PORT}`);
+  // Start the bot after web server is running
+  require('./bot.js');
 }); 

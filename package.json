@@ -1,10 +1,10 @@
 {
   "name": "scripture-bot",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "web-ui.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "pm2 start bot.js --name scripture-bot",
+    "start": "node web-ui.js",
     "dev": "node bot.js",
     "web": "node web-ui.js",
     "scheduler": "node scheduler.js"
