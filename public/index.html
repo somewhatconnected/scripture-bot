@@ -17,11 +17,17 @@
 </head>
 <body>
     <div class="container mt-5">
-        <h1>Scripture Bot Dashboard</h1>
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h1>Scripture Bot Dashboard</h1>
+            <div>
+                <span id="status-badge" class="badge bg-secondary">Offline</span>
+                <a href="/logout" class="btn btn-outline-danger ms-2">Logout</a>
+            </div>
+        </div>
         
-        <div class="row mt-4">
+        <div class="row">
             <div class="col-md-8">
-                <div class="card">
+                <div class="card mb-4">
                     <div class="card-header">
                         Generate Scripture
                     </div>
@@ -34,9 +40,49 @@
                         <div id="scripture" class="scripture-container mt-3"></div>
                     </div>
                 </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        Schedule Manager
+                    </div>
+                    <div class="card-body">
+                        <form id="scheduleForm">
+                            <div class="mb-3">
+                                <label for="channel" class="form-label">Channel</label>
+                                <select class="form-select" id="channel" required>
+                                    <option value="">Select a channel</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label for="time" class="form-label">Time</label>
+                                <input type="time" class="form-control" id="time" required>
+                            </div>
+                            <div class="mb-3">
+                                <label for="frequency" class="form-label">Frequency</label>
+                                <select class="form-select" id="frequency" required>
+                                    <option value="daily">Daily</option>
+                                    <option value="weekly">Weekly</option>
+                                    <option value="monthly">Monthly</option>
+                                </select>
+                            </div>
+                            <button type="submit" class="btn btn-primary">Update Schedule</button>
+                        </form>
+                    </div>
+                </div>
             </div>
             
             <div class="col-md-4">
+                <div class="card mb-4">
+                    <div class="card-header">
+                        Connected Channels
+                    </div>
+                    <div class="card-body">
+                        <ul id="channelList" class="list-group">
+                            <li class="list-group-item">Loading channels...</li>
+                        </ul>
+                    </div>
+                </div>
+
                 <div class="card">
                     <div class="card-header">
                         Bot Commands
@@ -53,6 +99,38 @@
     </div>
 
     <script>
+        // Update status and channels on load
+        async function updateStatus() {
+            try {
+                const response = await fetch('/api/status');
+                const data = await response.json();
+                
+                // Update online status
+                const statusBadge = document.getElementById('status-badge');
+                statusBadge.textContent = data.online ? 'Online' : 'Offline';
+                statusBadge.className = `badge ${data.online ? 'bg-success' : 'bg-danger'}`;
+                
+                // Update channel list
+                const channelList = document.getElementById('channelList');
+                const channelSelect = document.getElementById('channel');
+                
+                if (data.channels.length > 0) {
+                    channelList.innerHTML = data.channels.map(channel => 
+                        `<li class="list-group-item">${channel.guild} / #${channel.name}</li>`
+                    ).join('');
+                    
+                    channelSelect.innerHTML = data.channels.map(channel =>
+                        `<option value="${channel.id}">${channel.guild} / #${channel.name}</option>`
+                    ).join('');
+                } else {
+                    channelList.innerHTML = '<li class="list-group-item">No channels connected</li>';
+                }
+            } catch (error) {
+                console.error('Error updating status:', error);
+            }
+        }
+
+        // Scripture generation
         async function getScripture() {
             const prompt = document.getElementById('prompt').value.trim();
             const scriptureDiv = document.getElementById('scripture');
@@ -81,6 +159,39 @@
                 scriptureDiv.style.color = 'red';
             }
         }
+
+        // Schedule form handling
+        document.getElementById('scheduleForm').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                channelId: document.getElementById('channel').value,
+                time: document.getElementById('time').value,
+                frequency: document.getElementById('frequency').value
+            };
+            
+            try {
+                const response = await fetch('/api/schedule', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(formData)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('Schedule updated successfully!');
+                } else {
+                    alert('Failed to update schedule: ' + data.error);
+                }
+            } catch (error) {
+                alert('Failed to update schedule');
+            }
+        });
+
+        // Update status every 30 seconds
+        updateStatus();
+        setInterval(updateStatus, 30000);
     </script>
 </body>
 </html> 
