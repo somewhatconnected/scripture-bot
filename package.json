@@ -4,7 +4,8 @@
   "main": "index.js",
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",
-    "start": "node bot.js",
+    "start": "pm2 start bot.js --name scripture-bot",
+    "dev": "node bot.js",
     "web": "node web-ui.js",
     "scheduler": "node scheduler.js"
   },
