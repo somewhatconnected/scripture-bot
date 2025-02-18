@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Scripture Bot</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .scripture-container {
+            margin: 20px 0;
+            padding: 20px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+        }
+        button {
+            padding: 10px 20px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <h1>Scripture Bot</h1>
+    <button onclick="getScripture()">Get Scripture</button>
+    <div id="scripture" class="scripture-container"></div>
+
+    <script>
+        async function getScripture() {
+            try {
+                const response = await fetch('/api/scripture');
+                const data = await response.json();
+                document.getElementById('scripture').textContent = data.scripture;
+            } catch (error) {
+                console.error('Error:', error);
+                document.getElementById('scripture').textContent = 'Failed to fetch scripture';
+            }
+        }
+    </script>
+</body>
+</html> 
