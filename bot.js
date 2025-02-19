@@ -1,6 +1,7 @@
 require('dotenv').config();
 const { Client, GatewayIntentBits, EmbedBuilder } = require('discord.js');
 const { generateScripture } = require('./generateScripture');
+const config = require('./config');
 
 const client = new Client({
   intents: [
@@ -20,13 +21,23 @@ process.on('unhandledRejection', error => {
   console.error('Unhandled promise rejection:', error);
 });
 
-client.once('ready', () => {
+client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`);
-  // Set bot status
+  
+  // Verify channel access
+  try {
+    const channel = await client.channels.fetch(config.bot.defaultChannel);
+    if (channel) {
+      console.log(`Successfully connected to channel: ${channel.name}`);
+    }
+  } catch (error) {
+    console.error('Error accessing channel:', error);
+  }
+
   client.user.setPresence({
     status: 'online',
     activities: [{
-      name: '!scripture',
+      name: config.bot.prefix,
       type: 'WATCHING'
     }]
   });

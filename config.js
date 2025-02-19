@@ -13,6 +13,6 @@ module.exports = {
   // Bot configuration
   bot: {
     prefix: '!scripture',
-    // Add more bot configuration options here
+    defaultChannel: '1341533174970450003'
   }
 }; 
