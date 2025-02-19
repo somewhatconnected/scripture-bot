@@ -4,6 +4,7 @@ const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
 const app = express();
 const { requireAuth, DASHBOARD_PASSWORD } = require('./middleware/auth');
+const path = require('path');
 
 // Initialize Redis client with better error handling
 let redisStore;
@@ -125,6 +126,14 @@ const sessionMiddleware = session({
       console.error('Error:', error);
       res.status(500).json({ error: 'Failed to generate custom scripture' });
     }
+  });
+
+  // Serve static files from the public directory
+  app.use(express.static('public'));
+
+  // Root route handler
+  app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
   });
 
   const PORT = process.env.PORT || 3000;
