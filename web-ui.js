@@ -34,112 +34,116 @@ const initializeRedis = async () => {
   }
 };
 
-// Session middleware setup
-const sessionMiddleware = session({
-  store: redisStore,
-  secret: process.env.SESSION_SECRET || 'your-secret-key',
-  resave: false,
-  saveUninitialized: false,
-  cookie: { 
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 1000 * 60 * 60 * 24 // 24 hours
+// Wait for Redis to be ready before setting up sessions
+const setupApp = async () => {
+  try {
+    await initializeRedis();
+    
+    // Session middleware configuration
+    app.use(session({
+      store: redisStore,  // Use Redis store instead of MemoryStore
+      secret: process.env.SESSION_SECRET || 'your-secret-key',
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: process.env.NODE_ENV === 'production',
+        httpOnly: true,
+        maxAge: 1000 * 60 * 60 * 24 // 24 hours
+      }
+    }));
+
+    // Rest of your existing code...
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true }));
+
+    // Serve static files only after authentication
+    app.use('/dashboard', requireAuth, express.static('public'));
+
+    // Login routes
+    app.get('/login', (req, res) => {
+      res.sendFile(__dirname + '/public/login.html');
+    });
+
+    app.post('/login', (req, res) => {
+      if (req.body.password === DASHBOARD_PASSWORD) {
+        req.session.isAuthenticated = true;
+        res.redirect('/dashboard');
+      } else {
+        res.redirect('/login?error=1');
+      }
+    });
+
+    app.get('/logout', (req, res) => {
+      req.session.destroy();
+      res.redirect('/login');
+    });
+
+    // Protected API endpoints
+    app.get('/api/status', requireAuth, (req, res) => {
+      const status = {
+        online: discordClient?.isReady() ?? false,
+        channels: Array.from(discordClient?.channels.cache.values() ?? [])
+          .filter(channel => channel.type === 0) // Text channels only
+          .map(channel => ({
+            id: channel.id,
+            name: channel.name,
+            guild: channel.guild.name
+          })),
+        scheduledTasks: getScheduledTasks()
+      };
+      res.json(status);
+    });
+
+    app.post('/api/schedule', requireAuth, async (req, res) => {
+      try {
+        const { channelId, time, frequency } = req.body;
+        updateSchedule(channelId, time, frequency);
+        res.json({ success: true });
+      } catch (error) {
+        res.status(500).json({ error: error.message });
+      }
+    });
+
+    // Original API endpoints with auth
+    app.get('/api/scripture', requireAuth, async (req, res) => {
+      try {
+        const scripture = await generateScripture();
+        res.json({ scripture });
+      } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Failed to generate scripture' });
+      }
+    });
+
+    app.post('/api/scripture/custom', requireAuth, async (req, res) => {
+      try {
+        const { prompt } = req.body;
+        const scripture = await generateScripture(prompt);
+        res.json({ scripture });
+      } catch (error) {
+        console.error('Error:', error);
+        res.status(500).json({ error: 'Failed to generate custom scripture' });
+      }
+    });
+
+    // Serve static files from the public directory
+    app.use(express.static('public'));
+
+    // Root route handler
+    app.get('/', (req, res) => {
+      res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    });
+
+    const port = process.env.PORT || 3000;
+    app.listen(port, () => {
+      console.log(`Web UI running on port ${port}`);
+      const { client } = require('./bot.js');
+      discordClient = client;
+    });
+  } catch (error) {
+    console.error('Failed to setup application:', error);
+    process.exit(1);
   }
-});
+};
 
-// Initialize Redis before starting the server
-(async () => {
-  const redisInitialized = await initializeRedis();
-  if (!redisInitialized) {
-    console.warn('Using MemoryStore as fallback (not recommended for production)');
-  }
-
-  // Rest of your existing code...
-  app.use(express.json());
-  app.use(express.urlencoded({ extended: true }));
-  app.use(sessionMiddleware);
-
-  // Serve static files only after authentication
-  app.use('/dashboard', requireAuth, express.static('public'));
-
-  // Login routes
-  app.get('/login', (req, res) => {
-    res.sendFile(__dirname + '/public/login.html');
-  });
-
-  app.post('/login', (req, res) => {
-    if (req.body.password === DASHBOARD_PASSWORD) {
-      req.session.isAuthenticated = true;
-      res.redirect('/dashboard');
-    } else {
-      res.redirect('/login?error=1');
-    }
-  });
-
-  app.get('/logout', (req, res) => {
-    req.session.destroy();
-    res.redirect('/login');
-  });
-
-  // Protected API endpoints
-  app.get('/api/status', requireAuth, (req, res) => {
-    const status = {
-      online: discordClient?.isReady() ?? false,
-      channels: Array.from(discordClient?.channels.cache.values() ?? [])
-        .filter(channel => channel.type === 0) // Text channels only
-        .map(channel => ({
-          id: channel.id,
-          name: channel.name,
-          guild: channel.guild.name
-        })),
-      scheduledTasks: getScheduledTasks()
-    };
-    res.json(status);
-  });
-
-  app.post('/api/schedule', requireAuth, async (req, res) => {
-    try {
-      const { channelId, time, frequency } = req.body;
-      updateSchedule(channelId, time, frequency);
-      res.json({ success: true });
-    } catch (error) {
-      res.status(500).json({ error: error.message });
-    }
-  });
-
-  // Original API endpoints with auth
-  app.get('/api/scripture', requireAuth, async (req, res) => {
-    try {
-      const scripture = await generateScripture();
-      res.json({ scripture });
-    } catch (error) {
-      console.error('Error:', error);
-      res.status(500).json({ error: 'Failed to generate scripture' });
-    }
-  });
-
-  app.post('/api/scripture/custom', requireAuth, async (req, res) => {
-    try {
-      const { prompt } = req.body;
-      const scripture = await generateScripture(prompt);
-      res.json({ scripture });
-    } catch (error) {
-      console.error('Error:', error);
-      res.status(500).json({ error: 'Failed to generate custom scripture' });
-    }
-  });
-
-  // Serve static files from the public directory
-  app.use(express.static('public'));
-
-  // Root route handler
-  app.get('/', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
-  });
-
-  const PORT = process.env.PORT || 3000;
-  app.listen(PORT, () => {
-    console.log(`Web UI running on port ${PORT}`);
-    const { client } = require('./bot.js');
-    discordClient = client;
-  });
-})(); 
+setupApp(); 
