@@ -2,6 +2,8 @@ const express = require('express');
 const session = require('express-session');
 const RedisStore = require('connect-redis').default;
 const { createClient } = require('redis');
+const { Client } = require('discord.js');
+const config = require('./config');
 const app = express();
 const { requireAuth, DASHBOARD_PASSWORD } = require('./middleware/auth');
 const path = require('path');
@@ -78,29 +80,49 @@ const setupApp = async () => {
       res.redirect('/login');
     });
 
-    // Protected API endpoints
-    app.get('/api/status', requireAuth, (req, res) => {
-      const status = {
-        online: discordClient?.isReady() ?? false,
-        channels: Array.from(discordClient?.channels.cache.values() ?? [])
-          .filter(channel => channel.type === 0) // Text channels only
-          .map(channel => ({
+    // Add status tracking
+    let botStatus = 'offline';
+    let connectedChannels = [];
+
+    // Function to update bot status
+    const updateBotStatus = (status) => {
+      botStatus = status;
+    };
+
+    // Function to get connected channels
+    const getConnectedChannels = async (client) => {
+      try {
+        const channel = await client.channels.fetch(config.bot.defaultChannel);
+        if (channel) {
+          connectedChannels = [{
             id: channel.id,
             name: channel.name,
             guild: channel.guild.name
-          })),
-        scheduledTasks: getScheduledTasks()
-      };
-      res.json(status);
+          }];
+          console.log('Successfully loaded channel:', channel.name);
+          return connectedChannels;
+        }
+      } catch (error) {
+        console.error('Error fetching channels:', error);
+        connectedChannels = [];
+      }
+      return connectedChannels;
+    };
+
+    // API endpoints
+    app.get('/api/status', (req, res) => {
+      res.json({
+        status: botStatus,
+        channels: connectedChannels
+      });
     });
 
-    app.post('/api/schedule', requireAuth, async (req, res) => {
+    app.get('/api/channels', async (req, res) => {
       try {
-        const { channelId, time, frequency } = req.body;
-        updateSchedule(channelId, time, frequency);
-        res.json({ success: true });
+        res.json({ channels: connectedChannels });
       } catch (error) {
-        res.status(500).json({ error: error.message });
+        console.error('Error getting channels:', error);
+        res.status(500).json({ error: 'Failed to get channels' });
       }
     });
 

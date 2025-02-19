@@ -105,25 +105,31 @@
                 const response = await fetch('/api/status');
                 const data = await response.json();
                 
-                // Update online status
-                const statusBadge = document.getElementById('status-badge');
-                statusBadge.textContent = data.online ? 'Online' : 'Offline';
-                statusBadge.className = `badge ${data.online ? 'bg-success' : 'bg-danger'}`;
-                
-                // Update channel list
-                const channelList = document.getElementById('channelList');
+                // Update status indicator
+                const statusElement = document.querySelector('.status');
+                if (statusElement) {
+                    statusElement.textContent = data.status;
+                    statusElement.className = `status ${data.status.toLowerCase()}`;
+                }
+
+                // Update channel dropdown
                 const channelSelect = document.getElementById('channel');
-                
-                if (data.channels.length > 0) {
-                    channelList.innerHTML = data.channels.map(channel => 
-                        `<li class="list-group-item">${channel.guild} / #${channel.name}</li>`
-                    ).join('');
-                    
-                    channelSelect.innerHTML = data.channels.map(channel =>
-                        `<option value="${channel.id}">${channel.guild} / #${channel.name}</option>`
-                    ).join('');
-                } else {
-                    channelList.innerHTML = '<li class="list-group-item">No channels connected</li>';
+                if (channelSelect && data.channels) {
+                    channelSelect.innerHTML = '<option value="">Select a channel</option>';
+                    data.channels.forEach(channel => {
+                        const option = document.createElement('option');
+                        option.value = channel.id;
+                        option.textContent = `${channel.name} (${channel.guild})`;
+                        channelSelect.appendChild(option);
+                    });
+                }
+
+                // Update connected channels list
+                const channelsList = document.querySelector('.connected-channels');
+                if (channelsList && data.channels) {
+                    channelsList.innerHTML = data.channels.length ? 
+                        data.channels.map(c => `<div>${c.name} (${c.guild})</div>`).join('') :
+                        '<div>No channels connected</div>';
                 }
             } catch (error) {
                 console.error('Error updating status:', error);
@@ -190,8 +196,8 @@
         });
 
         // Update status every 30 seconds
-        updateStatus();
         setInterval(updateStatus, 30000);
+        updateStatus(); // Initial update
     </script>
 </body>
 </html> 

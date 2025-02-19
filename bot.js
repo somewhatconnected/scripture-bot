@@ -15,6 +15,7 @@ const client = new Client({
 // Error handling for the client
 client.on('error', error => {
   console.error('Discord client error:', error);
+  process.exit(1); // Force restart on critical errors
 });
 
 process.on('unhandledRejection', error => {
@@ -24,14 +25,14 @@ process.on('unhandledRejection', error => {
 client.once('ready', async () => {
   console.log(`Logged in as ${client.user.tag}!`);
   
-  // Verify channel access
   try {
     const channel = await client.channels.fetch(config.bot.defaultChannel);
     if (channel) {
-      console.log(`Successfully connected to channel: ${channel.name}`);
+      console.log(`Successfully connected to channel: ${channel.name} in ${channel.guild.name}`);
     }
   } catch (error) {
     console.error('Error accessing channel:', error);
+    throw new Error(`Could not access channel ${config.bot.defaultChannel}: ${error.message}`);
   }
 
   client.user.setPresence({
@@ -45,7 +46,7 @@ client.once('ready', async () => {
 
 // Add reconnection handling
 client.on('disconnect', () => {
-  console.log('Bot disconnected!');
+  console.log('Bot disconnected! Attempting to reconnect...');
   client.login(process.env.DISCORD_TOKEN);
 });
 
