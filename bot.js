@@ -7,6 +7,7 @@ const client = new Client({
     GatewayIntentBits.Guilds,
     GatewayIntentBits.GuildMessages,
     GatewayIntentBits.MessageContent,
+    GatewayIntentBits.GuildMembers,
   ]
 });
 
@@ -20,7 +21,21 @@ process.on('unhandledRejection', error => {
 });
 
 client.once('ready', () => {
-  console.log(`Logged in as ${client.user.tag}`);
+  console.log(`Logged in as ${client.user.tag}!`);
+  // Set bot status
+  client.user.setPresence({
+    status: 'online',
+    activities: [{
+      name: '!scripture',
+      type: 'WATCHING'
+    }]
+  });
+});
+
+// Add reconnection handling
+client.on('disconnect', () => {
+  console.log('Bot disconnected!');
+  client.login(process.env.DISCORD_TOKEN);
 });
 
 client.on('messageCreate', async (message) => {
@@ -60,4 +75,6 @@ async function sendScriptureEmbed(message, scripture, prompt = null) {
   await message.reply({ embeds: [embed] });
 }
 
-client.login(process.env.DISCORD_TOKEN); 
+client.login(process.env.DISCORD_TOKEN).catch(error => {
+  console.error('Failed to login to Discord:', error);
+}); 
